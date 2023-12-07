@@ -17,7 +17,23 @@ fn main() {
         values.push(card_value(&line));
     }
 
-    println!("Result, part 1: {}", values.iter().sum::<u32>())
+    println!(
+        "Result, part 1: {}",
+        values
+            .iter()
+            .map(|&n| if n == 0 { 0 } else { 2_u32.pow(n - 1) })
+            .sum::<u32>()
+    );
+
+    let mut copies = vec![1; values.len()];
+    for (i, &winners) in values.iter().enumerate() {
+        let my_copies = copies[i];
+        for j in (i + 1)..=(i + winners as usize) {
+            copies[j] += my_copies;
+        }
+    }
+
+    println!("Result, part 2: {}", copies.iter().sum::<u32>());
 }
 
 fn card_value(s: &str) -> u32 {
@@ -37,12 +53,7 @@ fn card_value(s: &str) -> u32 {
         .map(|s| s.parse::<u32>().unwrap())
         .collect::<Vec<_>>();
 
-    let num_winners = ours.iter().filter(|&n| winners.contains(n)).count() as u32;
-    if num_winners == 0 {
-        0
-    } else {
-        2_u32.pow(num_winners - 1)
-    }
+    ours.iter().filter(|&n| winners.contains(n)).count() as u32
 }
 
 #[cfg(test)]
@@ -53,7 +64,7 @@ mod tests {
     fn calculates_values() {
         assert_eq!(
             card_value("Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53"),
-            8
+            4
         );
         assert_eq!(
             card_value("Card 2: 13 32 20 16 61 | 61 30 68 82 17 32 24 19"),
