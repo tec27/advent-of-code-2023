@@ -1,3 +1,5 @@
+use std::io::{self, BufRead};
+
 const MAX_RED: u32 = 12;
 const MAX_GREEN: u32 = 13;
 const MAX_BLUE: u32 = 14;
@@ -14,9 +16,7 @@ fn main() {
         }
         let (id, max_red, max_green, max_blue) = parse(&line);
 
-        if max_red <= MAX_RED && max_green <= MAX_GREEN && max_blue <= MAX_BLUE {
-            values.push(id);
-        }
+        values.push(max_red * max_green * max_blue);
     }
 
     println!("Result: {}", values.iter().sum::<u32>())
