@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     io::{self, BufRead},
 };
 
@@ -17,8 +17,9 @@ fn main() {
         schematic.push(line);
     }
 
-    let part_numbers = find_part_numbers(&schematic);
-    println!("Result: {}", part_numbers.iter().sum::<u32>());
+    let (part_numbers, gears) = find_part_numbers(&schematic);
+    println!("Result, part 1: {}", part_numbers.iter().sum::<u32>());
+    println!("Result, part 2: {}", gears.iter().sum::<u32>());
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
@@ -33,9 +34,12 @@ struct LocatedNumber {
     location: Location,
 }
 
-fn find_part_numbers(schematic: &[String]) -> Vec<u32> {
+/// Returns (part_numbers, gear_ratios).
+fn find_part_numbers(schematic: &[String]) -> (Vec<u32>, Vec<u32>) {
     let mut numbers = Vec::new();
     let mut symbols = HashSet::new();
+    // Map of location => (count, gear_ratio)
+    let mut maybe_gears = HashMap::new();
 
     for (y, line) in schematic.iter().enumerate() {
         let mut reading_number = false;
@@ -62,6 +66,9 @@ fn find_part_numbers(schematic: &[String]) -> Vec<u32> {
                     continue;
                 } else {
                     symbols.insert(Location { x, y });
+                    if c == '*' {
+                        maybe_gears.insert(Location { x, y }, (0, 1));
+                    }
                 }
             }
         }
@@ -88,23 +95,34 @@ fn find_part_numbers(schematic: &[String]) -> Vec<u32> {
         let max_y = if y < max_y { y + 1 } else { y };
         let len = number.to_string().len();
         let max_x = (x + len).min(max_x);
+        let mut found = false;
 
-        'outer: for sx in min_x..=max_x {
+        for sx in min_x..=max_x {
             for sy in min_y..=max_y {
                 if sy == y && sx >= x && sx < x + len {
                     // Skip positions that are within the number itself
                     continue;
                 }
 
-                if symbols.contains(&Location { x: sx, y: sy }) {
+                if !found && symbols.contains(&Location { x: sx, y: sy }) {
                     part_numbers.push(number);
-                    break 'outer;
+                    found = true;
+                }
+                if let Some(gear) = maybe_gears.get_mut(&Location { x: sx, y: sy }) {
+                    gear.0 += 1;
+                    gear.1 *= number;
                 }
             }
         }
     }
 
-    part_numbers
+    (
+        part_numbers,
+        maybe_gears
+            .values()
+            .filter_map(|(count, ratio)| if *count == 2 { Some(*ratio) } else { None })
+            .collect(),
+    )
 }
 
 #[cfg(test)]
@@ -113,9 +131,8 @@ mod tests {
 
     #[test]
     fn finds_part_numbers() {
-        assert_eq!(
-            find_part_numbers(
-                &r"
+        let (mut parts, mut gears) = find_part_numbers(
+            &r"
             467..114..
             ...*......
             ..35..633.
@@ -127,12 +144,21 @@ mod tests {
             ...$.*....
             .664.598..
             "
-                .trim()
-                .lines()
-                .map(|l| l.trim().to_owned())
-                .collect::<Vec<_>>()
-            ),
-            [467, 35, 633, 617, 592, 755, 664, 598]
-        )
+            .trim()
+            .lines()
+            .map(|l| l.trim().to_owned())
+            .collect::<Vec<_>>(),
+        );
+
+        parts.sort();
+        gears.sort();
+
+        let mut expected = vec![467, 35, 633, 617, 592, 755, 664, 598];
+        expected.sort();
+        assert_eq!(parts, expected);
+
+        let mut expected = vec![467 * 35, 755 * 598];
+        expected.sort();
+        assert_eq!(gears, expected)
     }
 }
